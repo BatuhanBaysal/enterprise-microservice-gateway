@@ -1,0 +1,26 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+
+  main:
+    allow-bean-definition-overriding: true
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+eureka:
+  client:
+    enabled: false
+
+service:
+  internal:
+    secret: "TestInternalSecretKeyForContext"
+
+application:
+  security:
+    jwt:
+      secret-key: aGVyZSBhIGxvbmcgYW5kIHNlY3VyZSBzZWNyZXQga2V5IGZvciB5b3VyIHRlc3RpbmcgZW52aXJvbm1lbnQgcHVycG9zZXM=
+      expiration: 3600
