@@ -2,60 +2,36 @@ package com.batuhan.emg_api_gateway.util;
 
 import com.batuhan.emg_api_gateway.config.JwtProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-
-import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
+import io.jsonwebtoken.security.SecurityException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.security.Key;
 import java.util.Date;
 import java.util.function.Function;
 
 @Component
+@Slf4j
 public class JwtValidator {
 
-    private final Key key;
-    private final String secretKeyRaw;
-    private static final Logger log = LoggerFactory.getLogger(JwtValidator.class);
+    private final JwtProperties jwtProperties;
+    private final Key signingKey;
 
-    @Autowired
     public JwtValidator(JwtProperties jwtProperties) {
-        this.secretKeyRaw = jwtProperties.getSecretKey();
-        Key tempKey;
-
-        try {
-            byte[] keyBytes = Decoders.BASE64.decode(secretKeyRaw);
-            tempKey = Keys.hmacShaKeyFor(keyBytes);
-            log.info("DEBUG: JWT Secret Key successfully decoded. Decoded Length: {}", keyBytes.length);
-
-        } catch (IllegalArgumentException e) {
-            log.error("CRITICAL ERROR: Failed to decode JWT secret key from Base64. Check for illegal characters or spaces.", e);
-            tempKey = null;
-            throw new RuntimeException("JWT secret key decode error.", e);
-        }
-        this.key = tempKey;
+        this.jwtProperties = jwtProperties;
+        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecretKey()));
     }
-
-    @PostConstruct
-    public void logKeyDetails() {
-        log.info("DEBUG: Gateway JWT Secret Key (RAW): [{}]", this.secretKeyRaw);
-        if (this.key == null) {
-            log.error("DEBUG: Key is NULL, JWT validation will fail.");
-        }
-    }
-
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts
+                .parserBuilder()
+                .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -67,7 +43,11 @@ public class JwtValidator {
     }
 
     public boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
+        try {
+            return extractClaim(token, Claims::getExpiration).before(new Date());
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     public boolean validateToken(String token) {
@@ -81,12 +61,23 @@ public class JwtValidator {
         } catch (UnsupportedJwtException e) {
             log.warn("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            log.warn("JWT claims string is empty: {}", e.getMessage());
+            log.warn("JWT claims string is empty or key is invalid: {}", e.getMessage());
+        } catch (IllegalStateException e) {
+            log.warn("JWT Key is null: {}", e.getMessage());
         }
         return false;
     }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public String extractAuthorities(String token) {
+        final Claims claims = extractAllClaims(token);
+        Object authorities = claims.get("authorities");
+        if (authorities != null) {
+            return authorities.toString();
+        }
+        return "";
     }
 }
