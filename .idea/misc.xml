@@ -8,6 +8,7 @@
         <option value="$PROJECT_DIR$/emg-eureka-server/pom.xml" />
         <option value="$PROJECT_DIR$/emg-service-account/pom.xml" />
         <option value="$PROJECT_DIR$/emg-service-product/pom.xml" />
+        <option value="$PROJECT_DIR$/emg-config-server/pom.xml" />
       </list>
     </option>
   </component>
