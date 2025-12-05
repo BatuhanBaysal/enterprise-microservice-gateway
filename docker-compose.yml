@@ -11,7 +11,26 @@ services:
       POSTGRES_PASSWORD: pgs1234
       POSTGRES_DB: micro_account_db
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-account-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+
+  product-db:
+    image: postgres:16-alpine
+    container_name: product-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pgs1234
+      POSTGRES_DB: micro_product_db
+    volumes:
+      - postgres-product-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
@@ -33,7 +52,6 @@ services:
       retries: 5
     restart: always
 
-
   zipkin:
     image: openzipkin/zipkin
     container_name: zipkin
@@ -52,12 +70,11 @@ services:
       - "8761:8761"
     environment:
       - SPRING_CLOUD_CONFIG_ENABLED=false
-      - MANAGEMENT_TRACING_ENABLED=false
+      - MANAGEMENT_TRACING_ENABLED=true
     depends_on:
       zipkin:
         condition: service_started
     restart: on-failure
-
 
   api-gateway:
     image: emg-api-gateway
@@ -68,10 +85,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - APPLICATION_SECURITY_JWT_SECRET_KEY=UzpDUjNUX1BSMERfSU5UX0FVVEhfSzNZXzFUX0lTX1YzUllfTE9OR180NTg3REZHA==
+      - APPLICATION_SECURITY_JWT_SECRET_KEY="QUJDMTIzNEZVS0lTTVlTRUNSRVRRWVdFVkVSV0hBUkRERklOMg=="
       - APPLICATION_SECURITY_JWT_EXPIRATION=86400000
+      - INTERNAL_ACCESS_SECRET="MicroServiceInternalKey123!"
       - SPRING_DATA_REDIS_HOST=emg-redis
-      - MANAGEMENT_TRACING_ENABLED=false
+      - MANAGEMENT_TRACING_ENABLED=true
       - SPRING_CLOUD_CONFIG_ENABLED=false
     depends_on:
       eureka-server:
@@ -82,7 +100,6 @@ services:
         condition: service_started
     restart: on-failure
 
-
   account-service:
     image: emg-service-account
     container_name: account-service
@@ -91,15 +108,15 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
-    command: [ "sh", "-c", "sleep 15 && java -jar app.jar" ]
     environment:
       - DB_HOST=postgres-db
       - ACCOUNT_DB_NAME=micro_account_db
       - ACCOUNT_DB_USERNAME=postgres
       - ACCOUNT_DB_PASSWORD=pgs1234
-      - APPLICATION_SECURITY_JWT_SECRET_KEY=UzpDUjNUX1BSMERfSU5UX0FVVEhfSzNZXzFUX0lTX1YzUllfTE9OR180NTg3REZHA==
+      - APPLICATION_SECURITY_JWT_SECRET_KEY="QUJDMTIzNEZVS0lTTVlTRUNSRVRRWVdFVkVSV0hBUkRERklOMg=="
       - APPLICATION_SECURITY_JWT_EXPIRATION=86400000
-      - MANAGEMENT_TRACING_ENABLED=false
+      - INTERNAL_ACCESS_SECRET="MicroServiceInternalKey123!"
+      - MANAGEMENT_TRACING_ENABLED=true
       - SPRING_CLOUD_CONFIG_ENABLED=false
     depends_on:
       eureka-server:
@@ -110,7 +127,6 @@ services:
         condition: service_started
     restart: on-failure
 
-
   product-service:
     image: emg-service-product
     container_name: product-service
@@ -119,20 +135,20 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8082:8082"
-    command: [ "sh", "-c", "sleep 15 && java -jar app.jar" ]
     environment:
-      - DB_HOST=postgres-db
-      - PRODUCT_DB_NAME=micro_account_db
+      - DB_HOST=product-db
+      - PRODUCT_DB_NAME=micro_product_db
       - PRODUCT_DB_USERNAME=postgres
       - PRODUCT_DB_PASSWORD=pgs1234
-      - APPLICATION_SECURITY_JWT_SECRET_KEY=UzpDUjNUX1BSMERfSU5UX0FVVEhfSzNZXzFUX0lTX1YzUllfTE9OR180NTg3REZHA==
+      - APPLICATION_SECURITY_JWT_SECRET_KEY="QUJDMTIzNEZVS0lTTVlTRUNSRVRRWVdFVkVSV0hBUkRERklOMg=="
       - APPLICATION_SECURITY_JWT_EXPIRATION=86400000
-      - MANAGEMENT_TRACING_ENABLED=false
+      - INTERNAL_ACCESS_SECRET="MicroServiceInternalKey123!"
+      - MANAGEMENT_TRACING_ENABLED=true
       - SPRING_CLOUD_CONFIG_ENABLED=false
     depends_on:
       eureka-server:
         condition: service_started
-      postgres-db:
+      product-db:
         condition: service_healthy
       zipkin:
         condition: service_started
@@ -151,7 +167,6 @@ services:
         condition: service_started
     restart: always
 
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -163,6 +178,8 @@ services:
       - prometheus
     restart: always
 
+
 volumes:
   grafana-storage:
-  postgres-data:
+  postgres-account-data:
+  postgres-product-data:
